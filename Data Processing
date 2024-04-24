@@ -1,0 +1,2319 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": []
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "3knkHZcWKp2k"
+      },
+      "source": [
+        "# Project: Disaster Relief\n",
+        "#Section 2: Data Reprocessing and Simple Models \n"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "y5gBwlTa5EUR"
+      },
+      "source": [
+        "Today we will be building some more sophisticated models called One-hot-encoding, CountVectorizor, and Bag of Words. You can review the slides to remember how these models work. But first we will need to clean our data a little bit, an important step in any AI Pipeline."
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "EbW0_pxGhSKM"
+      },
+      "source": [
+        "In this notebook we'll be:\n",
+        "*   Preprocessing the Dataset for ML\n",
+        "*   Implementing a Bag of Words Vectorizer\n",
+        "*   Implementing Logistic Regression ML Models\n",
+        "\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "wpVg1HHxHoV9",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "275facdb-0ada-4026-d527-c0050277a14c"
+      },
+      "source": [
+        "#@title Load your dataset { display-mode: \"form\" }\n",
+        "# Run this every time you open the spreadsheet\n",
+        "%load_ext autoreload\n",
+        "%autoreload 2\n",
+        "from collections import Counter\n",
+        "from importlib.machinery import SourceFileLoader\n",
+        "import numpy as np\n",
+        "from os.path import join\n",
+        "import warnings\n",
+        "warnings.filterwarnings(\"ignore\")\n",
+        "\n",
+        "import nltk\n",
+        "nltk.download('punkt')\n",
+        "import seaborn as sns\n",
+        "import matplotlib\n",
+        "import matplotlib.pyplot as plt\n",
+        "from nltk.tokenize import sent_tokenize, word_tokenize\n",
+        "from nltk.stem.wordnet import WordNetLemmatizer\n",
+        "from nltk.stem.porter import *\n",
+        "from nltk.corpus import stopwords\n",
+        "nltk.download('stopwords' ,quiet=True)\n",
+        "from sklearn.feature_extraction.text import CountVectorizer\n",
+        "from sklearn.linear_model import LogisticRegression\n",
+        "from sklearn.model_selection import train_test_split\n",
+        "import pandas as pd\n",
+        "from sklearn.metrics import multilabel_confusion_matrix\n",
+        "from sklearn import metrics\n",
+        "import gdown\n",
+        "\n",
+        "\n",
+        "!wget -O ./disaster_data.csv 'https://storage.googleapis.com/inspirit-ai-data-bucket-1/Data/AI%20Scholars/Sessions%206%20-%2010%20(Projects)/Project%20-%20Disaster%20Relief/disaster_data.csv'\n",
+        "dataset_path = './disaster_data.csv'\n",
+        "\n",
+        "import nltk\n",
+        "import string\n",
+        "nltk.download('stopwords')\n",
+        "\n",
+        "\n",
+        "nltk.download('wordnet')"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "[nltk_data] Downloading package punkt to /root/nltk_data...\n",
+            "[nltk_data]   Unzipping tokenizers/punkt.zip.\n",
+            "--2021-06-17 03:00:44--  https://storage.googleapis.com/inspirit-ai-data-bucket-1/Data/AI%20Scholars/Sessions%206%20-%2010%20(Projects)/Project%20-%20Disaster%20Relief/disaster_data.csv\n",
+            "Resolving storage.googleapis.com (storage.googleapis.com)... 74.125.199.128, 74.125.142.128, 74.125.195.128, ...\n",
+            "Connecting to storage.googleapis.com (storage.googleapis.com)|74.125.199.128|:443... connected.\n",
+            "HTTP request sent, awaiting response... 200 OK\n",
+            "Length: 236777 (231K) [text/csv]\n",
+            "Saving to: ‘./disaster_data.csv’\n",
+            "\n",
+            "./disaster_data.csv 100%[===================>] 231.23K  --.-KB/s    in 0.005s  \n",
+            "\n",
+            "2021-06-17 03:00:44 (42.9 MB/s) - ‘./disaster_data.csv’ saved [236777/236777]\n",
+            "\n",
+            "[nltk_data] Downloading package stopwords to /root/nltk_data...\n",
+            "[nltk_data]   Package stopwords is already up-to-date!\n",
+            "[nltk_data] Downloading package wordnet to /root/nltk_data...\n",
+            "[nltk_data]   Unzipping corpora/wordnet.zip.\n"
+          ],
+          "name": "stdout"
+        },
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "True"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 4
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "cellView": "form",
+        "id": "ACwiMJ0uC7Ca"
+      },
+      "source": [
+        "#@title If the previous cell fails to load data, use this cell\n",
+        "import re\n",
+        "import gdown\n",
+        "import seaborn as sns\n",
+        "import pandas as pd\n",
+        "import numpy as np\n",
+        "from torchtext.vocab import GloVe\n",
+        "from sklearn.model_selection import train_test_split\n",
+        "\n",
+        "\n",
+        "\n",
+        "from sklearn import metrics\n",
+        "from sklearn.linear_model import LogisticRegression\n",
+        "from sklearn.metrics import classification_report\n",
+        "\n",
+        "from sklearn.metrics import precision_recall_fscore_support\n",
+        "from sklearn.metrics import accuracy_score\n",
+        "from sklearn.metrics import confusion_matrix\n",
+        "import matplotlib\n",
+        "import matplotlib.pyplot as plt\n",
+        "import requests, io, zipfile"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "GYFUn48ZeX5C"
+      },
+      "source": [
+        "# Introduction"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "pHy-dPU0c7bD"
+      },
+      "source": [
+        "Up until now, we have looked at disaster-related tweets, made a rule based classifier, and evaluated it. Today, we shall clean the data, stem it, and learn about One-Hot Encoding, CountVectorizer, and Logistic Regression.\n",
+        "\n",
+        "Before, we do all this, we must understand what a model really is."
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "HyDHWJg1eZdG"
+      },
+      "source": [
+        "What is a model? A model is something that we will make to predict the category of a given tweet. It is a numerical understanding of the data such that given a new data point, we can figure out how it links to the previous data. This is a crude definition, which you will understand more through this project.\n",
+        "\n",
+        "The models we have used or will use in this project are:\n",
+        "\n",
+        "1. Rule Based Classifier (You specify rules based on which the model gives the output - the category of the tweet)\n",
+        "2. CountVectorizer + Logistic Regression: A model based on counting the number of occurances of a word and applying regression on it to predict the category of a new tweet\n",
+        "3. Word2Vec + Logistic Regression: A model which applies the idea that words that occur in similar contexts tend to be close in a sentence, and uses this to predict the category of the tweet.\n"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "lCUv39e9UbZS"
+      },
+      "source": [
+        "## Data Preprocessing\n",
+        "\n",
+        "Before we can jump into building a model, we must clean the data a little bit!"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "1xsl3tDctOMo"
+      },
+      "source": [
+        "# Load the data.\n",
+        "disaster_tweets = pd.read_csv('disaster_data.csv',encoding =\"ISO-8859-1\")"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "RJ6yDnM_Lyoe",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 203
+        },
+        "outputId": "8110c854-b1fb-48d1-8408-bf5005f7e8da"
+      },
+      "source": [
+        "disaster_tweets.head()"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/html": [
+              "<div>\n",
+              "<style scoped>\n",
+              "    .dataframe tbody tr th:only-of-type {\n",
+              "        vertical-align: middle;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe tbody tr th {\n",
+              "        vertical-align: top;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe thead th {\n",
+              "        text-align: right;\n",
+              "    }\n",
+              "</style>\n",
+              "<table border=\"1\" class=\"dataframe\">\n",
+              "  <thead>\n",
+              "    <tr style=\"text-align: right;\">\n",
+              "      <th></th>\n",
+              "      <th>tweet_id</th>\n",
+              "      <th>text</th>\n",
+              "      <th>category</th>\n",
+              "      <th>need_or_resource</th>\n",
+              "    </tr>\n",
+              "  </thead>\n",
+              "  <tbody>\n",
+              "    <tr>\n",
+              "      <th>0</th>\n",
+              "      <td>ca9e24c8-396d-4502-8b45-18895df5333e_0</td>\n",
+              "      <td>Donations of batteries, flashlights, and clean...</td>\n",
+              "      <td>Energy</td>\n",
+              "      <td>need</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>1</th>\n",
+              "      <td>twitter_resource_tweets_1692</td>\n",
+              "      <td>I want hurricane Sandy to cone so I can be stu...</td>\n",
+              "      <td>None</td>\n",
+              "      <td>NaN</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>2</th>\n",
+              "      <td>625b46e2-0b81-41ea-826e-4535fe9b39b8</td>\n",
+              "      <td>Hi, I can help prepare food, serve food, offer...</td>\n",
+              "      <td>Food</td>\n",
+              "      <td>resource</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>3</th>\n",
+              "      <td>twitter_resource_tweets_1699</td>\n",
+              "      <td>I cant believe Sandy.....</td>\n",
+              "      <td>None</td>\n",
+              "      <td>NaN</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>4</th>\n",
+              "      <td>c3bfea72-d377-445c-b4b8-e8ebca0e7fbb</td>\n",
+              "      <td>I have children and adult clothes including ja...</td>\n",
+              "      <td>Water</td>\n",
+              "      <td>resource</td>\n",
+              "    </tr>\n",
+              "  </tbody>\n",
+              "</table>\n",
+              "</div>"
+            ],
+            "text/plain": [
+              "                                 tweet_id  ... need_or_resource\n",
+              "0  ca9e24c8-396d-4502-8b45-18895df5333e_0  ...             need\n",
+              "1            twitter_resource_tweets_1692  ...              NaN\n",
+              "2    625b46e2-0b81-41ea-826e-4535fe9b39b8  ...         resource\n",
+              "3            twitter_resource_tweets_1699  ...              NaN\n",
+              "4    c3bfea72-d377-445c-b4b8-e8ebca0e7fbb  ...         resource\n",
+              "\n",
+              "[5 rows x 4 columns]"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 7
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "m6YI_yKLtOMu"
+      },
+      "source": [
+        "**Discussion Exercise**: Consider the tweet *I really need food.... I am very hungry. The hunger is unbearable. #pleasehelp*\n",
+        "\n",
+        "1. Are all words in the tweet equally informative?\n",
+        "2. Are there any words in this sentence that mean the same thing, but are technically distinct words?\n",
+        "3. Are there any unecessary words or symbols that we could remove from the tweet before building a model?\n",
+        "\n",
+        "We are going to play with three pre-processing steps to address these two questions."
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "RA464Y6cLTvY"
+      },
+      "source": [
+        "###Removal of non alphabetic characters\n",
+        "\n",
+        "In tweet classification we use words as the features, so it's important to remove unwanted characters such as numbers and punctuation marks as they dont provide us with any valuable information"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "ipcc-gW4pV_H"
+      },
+      "source": [
+        "#Read the tweet data and convert it to lowercase\n",
+        "tweets = disaster_tweets['text'].str.lower() \n",
+        "tweets = tweets.apply(lambda x: re.sub(r'[^a-zA-Z0-9]+', ' ',x))"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "ZZ4U8NqwLqkC"
+      },
+      "source": [
+        "#Extract the labels from the csv\n",
+        "tweet_labels = disaster_tweets['category']"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "EZegZdHEtOMu"
+      },
+      "source": [
+        "### Tokenizing\n",
+        "First we need to split a sentence into individual words, or *tokens*.\n"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "TBHJd1zzbP5y"
+      },
+      "source": [
+        "###**Discussion Exercise**:  "
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "MhQawpZhZh0i"
+      },
+      "source": [
+        "What would be the token list be of the following sentence be? \"*AI is so fun! I love to learn about NLP and machine learning!*\"\"\n",
+        "\n",
+        "Discuss your answer with your group, then write it down in your worksheet. "
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "d9Kp7TmUP4jV",
+        "cellView": "form",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "5710fbfa-f828-49b0-b201-4992efd5501e"
+      },
+      "source": [
+        "#@title Tokenizing\n",
+        "tweet = \"AI is so fun! I love to learn about NLP and machine learning!nter your own tweet here\" #@param {type:'string'}\n",
+        "for i in word_tokenize(tweet):\n",
+        "  print(i)"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "AI\n",
+            "is\n",
+            "so\n",
+            "fun\n",
+            "!\n",
+            "I\n",
+            "love\n",
+            "to\n",
+            "learn\n",
+            "about\n",
+            "NLP\n",
+            "and\n",
+            "machine\n",
+            "learning\n",
+            "!\n",
+            "nter\n",
+            "your\n",
+            "own\n",
+            "tweet\n",
+            "here\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "FOdgIHG1XyTc"
+      },
+      "source": [
+        "## Stemming and Lemmatization"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "rxy-DT6VX1ow"
+      },
+      "source": [
+        "Remember that the goal of both stemming and lemmatization is to reduce inflectional forms and sometimes derivationally related forms of a word to a common base form.\n",
+        "\n",
+        "A difference between stemming and lemmatization is that stemming looks at the current word only, while lemmatization also takes the context into consideration. Either way, this pre-processing step could be somewhat tedious. Luckily, the powerful `nltk` provides tools for both.\n"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "FqiJUBS_tONG"
+      },
+      "source": [
+        "\n",
+        "### Exercise: Stemming using the Porter stemmer\n",
+        "*Porter's algorithm*, developed in the 1980s, is one of the most commonly used stemmers.  \n"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "bOZgX-PUX6c8"
+      },
+      "source": [
+        "\n",
+        "Try and find a word that Porter's stemming doesn't work well on! (Hint: Try some plurals of words that end in -e)"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "LZJvHmIttONI",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "d5c4a454-1b2e-4b11-c99e-12b9ffead164"
+      },
+      "source": [
+        "#@title Stem words { run: \"auto\", vertical-output: true, display-mode: \"form\" }\n",
+        "stemmer = PorterStemmer()\n",
+        "word = \"amulets\" #@param {type:\"string\"}\n",
+        "print(stemmer.stem(word))\n"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "amulet\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "UDL4h--FtONM"
+      },
+      "source": [
+        "### Lemmatizer\n",
+        "\n",
+        "You can add more words to `plurals` and see what the stemming results look like.  \n",
+        "You may find that the results may look a bit mechanical. This is because the Porter's algorithm is essentially a sequential application of a set of rules. To get better looking results, let's try out a lemmatizer."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "VidwNdk0tONO",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "3faf6408-db22-4ca7-cb37-813505aa8fa6"
+      },
+      "source": [
+        "#@title Lemmatize Words { run: \"auto\", vertical-output: true, display-mode: \"form\" }\n",
+        "# Get the lemmatizer\n",
+        "lemma = WordNetLemmatizer()\n",
+        "word = \"people\" #@param {type:\"string\"}\n",
+        "print(lemma.lemmatize(word))\n"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "people\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "3fRexsQWZJCO"
+      },
+      "source": [
+        "###**Discussion Exercise**:"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "5lfFIoeOJ-mS"
+      },
+      "source": [
+        " What are the differences between the Porter stemmer and the lematizer? How do you think the lemmatizer works?\n",
+        " \n",
+        " Discuss your answer then write it down. "
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "GRcZX84-x06q"
+      },
+      "source": [
+        "## Stop Words"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "5IMUAPkRbasd"
+      },
+      "source": [
+        "###**Discussion Exercise**: "
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "5IdSIVSLyWMr"
+      },
+      "source": [
+        "Are there words that can be removed without affecting the model? \n",
+        "\n",
+        "Write examples of a few words that you think can be removed from the sentence, but yet the sentence would not be mis-classified (Think of words that occur most common, and in both the tweet categories...)"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "4yF6R42-zoUp"
+      },
+      "source": [
+        "Stop words are words that occur in both category, that are not relevant to the context, such as 'at', 'is', 'the' and so on... It is usually advantageous for the classifier to ignore these stop words, since they may add noises or cause numerical issues as they add baggage to the model"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "RIsSdBJ14Zn_",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "004bbdf4-b37b-4b7c-e33d-9bf422fc1b8a"
+      },
+      "source": [
+        "#@title Few Stop-Words { vertical-output: true, display-mode: \"form\" }\n",
+        "eng_stopwords = set(stopwords.words('english'))\n",
+        "for i,word in enumerate(eng_stopwords):\n",
+        "    if i>10: break\n",
+        "    print(word)"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "doing\n",
+            "will\n",
+            "am\n",
+            "her\n",
+            "ain\n",
+            "aren't\n",
+            "it\n",
+            "the\n",
+            "do\n",
+            "nor\n",
+            "all\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "mBPkmmzF4mWU"
+      },
+      "source": [
+        "Let us see if the words you identified are stop words or not. Check your words here, using this interactive piece of code"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "Gw75nnP14t-k",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "68067a7a-16c9-48f2-8ab0-afc79ab0eda0"
+      },
+      "source": [
+        "#@title Check stop words { run: \"auto\", vertical-output: true, display-mode: \"form\" }\n",
+        "word = \"his\" #@param {type:\"string\"}\n",
+        "if not word: raise Exception('Please enter a word')\n",
+        "eng_stopwords = set(stopwords.words('english'))\n",
+        "if word.lower().strip() in eng_stopwords: print('YES')\n",
+        "else: print('NO')\n",
+        "\n"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "YES\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "5fK0FSbhRA2r"
+      },
+      "source": [
+        "## Preprocessing pipeline of our data\n",
+        "\n",
+        "Explore how combining these methods changes the structure of our tweet dataset. Here are the first 5 tweets after preprocessing."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "ULJG6XbIpxsZ"
+      },
+      "source": [
+        "stopword_set = set(stopwords.words('english'))\n",
+        "\n",
+        "'''\n",
+        "Complete the following function to remove the stopwords from the tokenized tweets \n",
+        "'''\n",
+        "def remove_stopwords(token_list):\n",
+        "  filtered_sentences = [] \n",
+        "  \n",
+        "  for i in token_list:\n",
+        "    temp=[]\n",
+        "    for j in i:\n",
+        "      if (not j in stopword_set):\n",
+        "        temp.append(j)\n",
+        "    filtered_sentences.append(temp)\n",
+        "  \n",
+        "  return filtered_sentences"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "Ho4sPpFJRFy2",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "a8350243-60b9-45fa-c397-06934740a5a8"
+      },
+      "source": [
+        "#Tokenize all the tweets\n",
+        "tokenized_tweets = [word_tokenize(t) for t in tweets]\n",
+        "print (tokenized_tweets[0])\n",
+        "#Remove Stopwords from all the tweets\n",
+        "tweet_set = remove_stopwords(tokenized_tweets)\n",
+        "\n",
+        "## First 5 tweets:\n",
+        "for i in range(5):\n",
+        "  print(\"Original tweet: %s: \\nCleaned and tokenized data: %s\\n\" % (tweets[i], tweet_set[i]))"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "['donations', 'of', 'batteries', 'flashlights', 'and', 'cleaning', 'supplies', 'are', 'always', 'welcome', 'at', 'our', 'donation', 'drop', 'off', 'at', '23', '74', '38th', 'st', 'btwn', '23rd', 'ave', 'astoria', 'blvd', 'thanks']\n",
+            "Original tweet: donations of batteries flashlights and cleaning supplies are always welcome at our donation drop off at 23 74 38th st btwn 23rd ave astoria blvd thanks : \n",
+            "Cleaned and tokenized data: ['donations', 'batteries', 'flashlights', 'cleaning', 'supplies', 'always', 'welcome', 'donation', 'drop', '23', '74', '38th', 'st', 'btwn', '23rd', 'ave', 'astoria', 'blvd', 'thanks']\n",
+            "\n",
+            "Original tweet: i want hurricane sandy to cone so i can be stuck in my house with my family not : \n",
+            "Cleaned and tokenized data: ['want', 'hurricane', 'sandy', 'cone', 'stuck', 'house', 'family']\n",
+            "\n",
+            "Original tweet: hi i can help prepare food serve food offer clean up assistance but don t necessarily have any tools just my hands and willingness to help i only have a bicycle and could maybe help with deliveries i m within walking distance of red hook : \n",
+            "Cleaned and tokenized data: ['hi', 'help', 'prepare', 'food', 'serve', 'food', 'offer', 'clean', 'assistance', 'necessarily', 'tools', 'hands', 'willingness', 'help', 'bicycle', 'could', 'maybe', 'help', 'deliveries', 'within', 'walking', 'distance', 'red', 'hook']\n",
+            "\n",
+            "Original tweet: i cant believe sandy : \n",
+            "Cleaned and tokenized data: ['cant', 'believe', 'sandy']\n",
+            "\n",
+            "Original tweet: i have children and adult clothes including jacket blanket shoes and bottle water: \n",
+            "Cleaned and tokenized data: ['children', 'adult', 'clothes', 'including', 'jacket', 'blanket', 'shoes', 'bottle', 'water']\n",
+            "\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "MYmIUGamOuaN"
+      },
+      "source": [
+        "\n",
+        "# Bag of Words Model"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "v_fBuMp_UsO8"
+      },
+      "source": [
+        "## One-Hot Encoding\n",
+        "**One Hot Encoding**, also known as one-of-K scheme is a way to encode the data to be used in other functions (such as linear regression).\n",
+        "\n",
+        "Let us consider an example to understand one hot encoding:\n",
+        "\n",
+        "Before we apply a model on our tweets, we need to convert it to a form the model, i.e. a machine, can understand - esentially convert a tweet to numerical form. We cannot just pass words to the model, because it won't know what those mean and migt try and exrtract information from them. Hence, a numerical format is the best. \n",
+        "\n",
+        "The easiet way to do so is to map each word in a tweet to a number, a categorical value. This will represent all words in a tweet uniquely!\n",
+        "\n",
+        "---\n",
+        "Suppose we have a tweet:\n",
+        "> Tweet: 'I am hungry need food' <br>\n",
+        "> Category: Food\n",
+        "\n",
+        "Its numerical representation would be:"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "kqSH4SwDUrol",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "af6514aa-a6fa-4ca0-a157-04a2dbfb79c8"
+      },
+      "source": [
+        "#@title Numeric Represention { vertical-output: true, display-mode: \"form\" }\n",
+        "d = {'I': 1, 'am': 2, 'hungry': 3, 'need': 4, 'food': 5}\n",
+        "print('{:<12}|{:>2}'.format('word', 'value'))\n",
+        "print('-------------------')\n",
+        "for k,v in d.items(): print('{:<12}|{:>3}'.format(k,v))"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "word        |value\n",
+            "-------------------\n",
+            "I           |  1\n",
+            "am          |  2\n",
+            "hungry      |  3\n",
+            "need        |  4\n",
+            "food        |  5\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "8b-n3laDc1ZS"
+      },
+      "source": [
+        "**Discussion Exercise**: Why do you think the above representation is wrong? What information could a model possibly extract from the above information such that its conclusions would be wrong/way off to what we want to achieve.\n"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "ba6M5gJ9dScQ"
+      },
+      "source": [
+        "We need to encode the words and include them as a feature to train the model. That is where One Hot Encoding comes into play. Understanding how it is done will make the process clearer\n",
+        "\n",
+        "Let us consider the same example and see what its one hot encoding would be"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "xzqRYQVfKYwZ",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "673871ce-2dce-4c96-b708-bcc8e78d1097"
+      },
+      "source": [
+        "#@title One Hot Encoding { vertical-output: true, display-mode: \"form\" }\n",
+        "print('{:^10}|{:^7}|{:^8}|{:^2}|{:^9}'.format('I', 'am', 'hungry','need','food'))\n",
+        "print('---------------------------------------------------')\n",
+        "print('{:^10}|{:^7}|{:^8}|{:^2}|{:^9}'.format('1', '0', '0','0','0'))\n",
+        "print('{:^10}|{:^7}|{:^8}|{:^2}|{:^9}'.format('0', '1', '0','0','0'))\n",
+        "print('{:^10}|{:^7}|{:^8}|{:^2}|{:^9}'.format('0', '0', '1','0','0'))\n",
+        "print('{:^10}|{:^7}|{:^8}|{:^2}|{:^9}'.format('0', '0', '0','1','0'))\n",
+        "print('{:^10}|{:^7}|{:^8}|{:^2}|{:^9}'.format('0', '0', '0','0','1'))\n"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "    I     |  am   | hungry |need|  food   \n",
+            "---------------------------------------------------\n",
+            "    1     |   0   |   0    |0 |    0    \n",
+            "    0     |   1   |   0    |0 |    0    \n",
+            "    0     |   0   |   1    |0 |    0    \n",
+            "    0     |   0   |   0    |1 |    0    \n",
+            "    0     |   0   |   0    |0 |    1    \n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "G4ihznS8vA3p"
+      },
+      "source": [
+        "You see here, each letter is represented using a row of 1's and 0's, a row which can esentially represent the whole of the vocabulary. This is called one hot encoding.\n",
+        "\n",
+        "So 'I' would be [1,0,0,0,0]\n",
+        "\n",
+        "And a whole sentence is the combination of all the words and hence their one hot encoding. So the representation of the sentence 'I hungry' would be [1,0,1,0,0]"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "jqy3nTWDVYrt"
+      },
+      "source": [
+        "### One Hot Encoding Function"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "NoMBPD60VYMd",
+        "cellView": "both"
+      },
+      "source": [
+        "def one_hot_encoding(sentences, sentence, print_word_dict = False):\n",
+        "  \"\"\"\n",
+        "  param: sentences - list of sentences to form the one hot encoding\n",
+        "  param: sentence - sentence to return the one hot encoding of\n",
+        "  return: sent_encoding - the encoded sentence\n",
+        "  \"\"\"\n",
+        "  \n",
+        "  # words_list = an empty list\n",
+        "  words_list = []\n",
+        "  \n",
+        "  # Loop through all the sentences.\n",
+        "  # Split each sentence using the .split() method for a string, to get a list of words\n",
+        "  # Add those words to words_list\n",
+        "  for sent in sentences:\n",
+        "    words_list.extend(word_tokenize(sent))\n",
+        "  \n",
+        "  # remove the duplicates by making it into a set and back to a list\n",
+        "  words_list = list(set(words_list))\n",
+        "  \n",
+        "  # words_map_dict = make an empty dictionary \n",
+        "  words_map_dict = {}\n",
+        "\n",
+        "  # loop through all the words in words_list\n",
+        "  # add each word as a key in words_map_dict and the index of the word as value.\n",
+        "  for w in range(len(words_list)):\n",
+        "    word = words_list[w]\n",
+        "    words_map_dict[word] = w\n",
+        "    \n",
+        "  # sent_encoding = a numpy array of all zeros of the same length as words_list\n",
+        "  sent_encoding = np.zeros(len(words_list))\n",
+        "\n",
+        "  # loop through the words in the given sentence (sentence to check)\n",
+        "  # Find the index of each word, using the words_map_dict dictionary\n",
+        "  # Change the value of the numpy array at that index to one\n",
+        "  for word in word_tokenize(sentence):\n",
+        "    if word not in words_map_dict:\n",
+        "      continue\n",
+        "    print(word)\n",
+        "    indx = words_map_dict[word]\n",
+        "    sent_encoding[indx] = 1\n",
+        "  \n",
+        "  if print_word_dict:\n",
+        "    print (\"Word Dictionary: \", words_map_dict)\n",
+        "\n",
+        "  return sent_encoding\n",
+        "  \n",
+        "  ### Your code ends here ###\n",
+        " "
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "n3rJZr_hqsUX",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "21db441c-bd8f-44b0-c99b-309f76f9983b"
+      },
+      "source": [
+        "encoding = one_hot_encoding([\"oh I love AI\", \"AI is so much fun\", \"is AI fun or what\"], \"oh what fun AI is \", True)\n",
+        "print(\"Encoding: \", encoding)\n"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "oh\n",
+            "what\n",
+            "fun\n",
+            "AI\n",
+            "is\n",
+            "Word Dictionary:  {'oh': 0, 'much': 1, 'fun': 2, 'so': 3, 'is': 4, 'what': 5, 'love': 6, 'or': 7, 'I': 8, 'AI': 9}\n",
+            "Encoding:  [1. 0. 1. 0. 1. 1. 0. 0. 0. 1.]\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "pGIjELh0wDD1"
+      },
+      "source": [
+        "## Count Vectorizer - The Bag of words model"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "-uZDNaLHdxbl"
+      },
+      "source": [
+        "### Introduction"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "Wi7A3SuRwGdP"
+      },
+      "source": [
+        "Now that we have the one hot encoding for all tweets, its time to attach value to each word, such that it can be distinguished and used by the model. \n",
+        "\n",
+        "One idea is to assign each word the same weight, say a weight of one. However, that is non distinguishable and the model won't be able to learn anything with that information. Can you think of a simple way to add weights to words which, say, occur more frequently?\n",
+        "\n",
+        "That is the Bag of Words Model. The **Bag of Words Model** converts the tweets into a matrix of token counts. Let us consider an example\n",
+        "\n",
+        "----"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "ebbwyut2jxgl"
+      },
+      "source": [
+        "Recall the first 3 tweets:"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "bznJPPrHeAA5",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "1378fa44-3b93-4099-c379-b88e8adda370"
+      },
+      "source": [
+        "for t in tweets[:3]:\n",
+        "  print(t)"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "donations of batteries flashlights and cleaning supplies are always welcome at our donation drop off at 23 74 38th st btwn 23rd ave astoria blvd thanks \n",
+            "i want hurricane sandy to cone so i can be stuck in my house with my family not \n",
+            "hi i can help prepare food serve food offer clean up assistance but don t necessarily have any tools just my hands and willingness to help i only have a bicycle and could maybe help with deliveries i m within walking distance of red hook \n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "I_nJ-Kqtkvv6"
+      },
+      "source": [
+        "The Vocabulary for the tweets would be:"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "Ax8Y4gQCsibD",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "934a1a7f-ef29-4b47-c76e-c057a13e6a73"
+      },
+      "source": [
+        "#@title Vocabulary { vertical-output: true, display-mode: \"form\" }\n",
+        "word_count = Counter()\n",
+        "for tweet in tweets[:3]:\n",
+        "  for t in word_tokenize(tweet): \n",
+        "    word_count[t]+=1\n",
+        "word_count_list = [(k,v) for k,v in word_count.items()]\n",
+        "word_count_list.sort(key=lambda x:x[0])\n",
+        "print('{:<12}|{:>2}'.format('word', 'position'))\n",
+        "print('-------------------')\n",
+        "for k,v in enumerate(word_count_list): print('{:<12}|{:>3}'.format(v[0],k))"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "word        |position\n",
+            "-------------------\n",
+            "23          |  0\n",
+            "23rd        |  1\n",
+            "38th        |  2\n",
+            "74          |  3\n",
+            "a           |  4\n",
+            "always      |  5\n",
+            "and         |  6\n",
+            "any         |  7\n",
+            "are         |  8\n",
+            "assistance  |  9\n",
+            "astoria     | 10\n",
+            "at          | 11\n",
+            "ave         | 12\n",
+            "batteries   | 13\n",
+            "be          | 14\n",
+            "bicycle     | 15\n",
+            "blvd        | 16\n",
+            "btwn        | 17\n",
+            "but         | 18\n",
+            "can         | 19\n",
+            "clean       | 20\n",
+            "cleaning    | 21\n",
+            "cone        | 22\n",
+            "could       | 23\n",
+            "deliveries  | 24\n",
+            "distance    | 25\n",
+            "don         | 26\n",
+            "donation    | 27\n",
+            "donations   | 28\n",
+            "drop        | 29\n",
+            "family      | 30\n",
+            "flashlights | 31\n",
+            "food        | 32\n",
+            "hands       | 33\n",
+            "have        | 34\n",
+            "help        | 35\n",
+            "hi          | 36\n",
+            "hook        | 37\n",
+            "house       | 38\n",
+            "hurricane   | 39\n",
+            "i           | 40\n",
+            "in          | 41\n",
+            "just        | 42\n",
+            "m           | 43\n",
+            "maybe       | 44\n",
+            "my          | 45\n",
+            "necessarily | 46\n",
+            "not         | 47\n",
+            "of          | 48\n",
+            "off         | 49\n",
+            "offer       | 50\n",
+            "only        | 51\n",
+            "our         | 52\n",
+            "prepare     | 53\n",
+            "red         | 54\n",
+            "sandy       | 55\n",
+            "serve       | 56\n",
+            "so          | 57\n",
+            "st          | 58\n",
+            "stuck       | 59\n",
+            "supplies    | 60\n",
+            "t           | 61\n",
+            "thanks      | 62\n",
+            "to          | 63\n",
+            "tools       | 64\n",
+            "up          | 65\n",
+            "walking     | 66\n",
+            "want        | 67\n",
+            "welcome     | 68\n",
+            "willingness | 69\n",
+            "with        | 70\n",
+            "within      | 71\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "IkY5OPdZ1XXR"
+      },
+      "source": [
+        "If there are N words in the vocabulary, each row in the matrix would be of N words. \n",
+        "\n",
+        "Based on this, one hot encoding for each tweet and the matrix that will be given to the model would be the following.\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "JHKB2Kt3egP6",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "724c4d09-fe57-4602-bd33-2a3918df309b"
+      },
+      "source": [
+        "print(\"Tweet 1: \", one_hot_encoding([str(t) for t in tweets[:3]], str(tweets[0])))\n",
+        "print(\"Tweet 2: \", one_hot_encoding([str(t) for t in tweets[:3]], str(tweets[1])))\n",
+        "print(\"Tweet 3: \", one_hot_encoding([str(t) for t in tweets[:3]], str(tweets[2])))"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "donations\n",
+            "of\n",
+            "batteries\n",
+            "flashlights\n",
+            "and\n",
+            "cleaning\n",
+            "supplies\n",
+            "are\n",
+            "always\n",
+            "welcome\n",
+            "at\n",
+            "our\n",
+            "donation\n",
+            "drop\n",
+            "off\n",
+            "at\n",
+            "23\n",
+            "74\n",
+            "38th\n",
+            "st\n",
+            "btwn\n",
+            "23rd\n",
+            "ave\n",
+            "astoria\n",
+            "blvd\n",
+            "thanks\n",
+            "Tweet 1:  [0. 0. 0. 0. 0. 1. 1. 1. 1. 0. 0. 0. 0. 1. 0. 0. 0. 0. 1. 0. 1. 0. 0. 0.\n",
+            " 0. 0. 0. 0. 0. 0. 1. 0. 1. 1. 1. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 1. 0. 0.\n",
+            " 1. 1. 1. 1. 1. 1. 0. 0. 1. 1. 0. 0. 0. 0. 0. 1. 1. 0. 0. 1. 0. 0. 1. 1.]\n",
+            "i\n",
+            "want\n",
+            "hurricane\n",
+            "sandy\n",
+            "to\n",
+            "cone\n",
+            "so\n",
+            "i\n",
+            "can\n",
+            "be\n",
+            "stuck\n",
+            "in\n",
+            "my\n",
+            "house\n",
+            "with\n",
+            "my\n",
+            "family\n",
+            "not\n",
+            "Tweet 2:  [0. 0. 1. 0. 0. 0. 0. 0. 0. 1. 0. 1. 1. 0. 0. 0. 0. 0. 0. 0. 0. 1. 0. 0.\n",
+            " 1. 0. 1. 0. 0. 0. 0. 0. 0. 0. 0. 1. 0. 0. 1. 0. 0. 1. 0. 1. 1. 0. 0. 0.\n",
+            " 0. 0. 0. 0. 0. 0. 1. 1. 0. 0. 1. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 1. 0. 0.]\n",
+            "hi\n",
+            "i\n",
+            "can\n",
+            "help\n",
+            "prepare\n",
+            "food\n",
+            "serve\n",
+            "food\n",
+            "offer\n",
+            "clean\n",
+            "up\n",
+            "assistance\n",
+            "but\n",
+            "don\n",
+            "t\n",
+            "necessarily\n",
+            "have\n",
+            "any\n",
+            "tools\n",
+            "just\n",
+            "my\n",
+            "hands\n",
+            "and\n",
+            "willingness\n",
+            "to\n",
+            "help\n",
+            "i\n",
+            "only\n",
+            "have\n",
+            "a\n",
+            "bicycle\n",
+            "and\n",
+            "could\n",
+            "maybe\n",
+            "help\n",
+            "with\n",
+            "deliveries\n",
+            "i\n",
+            "m\n",
+            "within\n",
+            "walking\n",
+            "distance\n",
+            "of\n",
+            "red\n",
+            "hook\n",
+            "Tweet 3:  [1. 1. 0. 1. 1. 1. 0. 0. 0. 0. 1. 1. 0. 0. 1. 1. 1. 1. 0. 1. 0. 0. 1. 1.\n",
+            " 1. 1. 1. 1. 1. 1. 0. 1. 0. 0. 0. 0. 1. 1. 1. 1. 1. 0. 1. 0. 0. 0. 1. 1.\n",
+            " 0. 0. 0. 0. 0. 0. 1. 0. 0. 1. 0. 1. 1. 1. 1. 0. 0. 1. 1. 0. 1. 0. 0. 0.]\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "OwwUjET5z_NY",
+        "cellView": "form",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "86239970-a729-44d9-94ee-f3c457414eda"
+      },
+      "source": [
+        "#@title Token Counts { vertical-output: true }\n",
+        "print('{:<12}|{:>2}'.format('word', 'word_count'))\n",
+        "print('-------------------')\n",
+        "for k,v in word_count_list: print('{:<12}|{:>3}'.format(k,v))"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "word        |word_count\n",
+            "-------------------\n",
+            "23          |  1\n",
+            "23rd        |  1\n",
+            "38th        |  1\n",
+            "74          |  1\n",
+            "a           |  1\n",
+            "always      |  1\n",
+            "and         |  3\n",
+            "any         |  1\n",
+            "are         |  1\n",
+            "assistance  |  1\n",
+            "astoria     |  1\n",
+            "at          |  2\n",
+            "ave         |  1\n",
+            "batteries   |  1\n",
+            "be          |  1\n",
+            "bicycle     |  1\n",
+            "blvd        |  1\n",
+            "btwn        |  1\n",
+            "but         |  1\n",
+            "can         |  2\n",
+            "clean       |  1\n",
+            "cleaning    |  1\n",
+            "cone        |  1\n",
+            "could       |  1\n",
+            "deliveries  |  1\n",
+            "distance    |  1\n",
+            "don         |  1\n",
+            "donation    |  1\n",
+            "donations   |  1\n",
+            "drop        |  1\n",
+            "family      |  1\n",
+            "flashlights |  1\n",
+            "food        |  2\n",
+            "hands       |  1\n",
+            "have        |  2\n",
+            "help        |  3\n",
+            "hi          |  1\n",
+            "hook        |  1\n",
+            "house       |  1\n",
+            "hurricane   |  1\n",
+            "i           |  5\n",
+            "in          |  1\n",
+            "just        |  1\n",
+            "m           |  1\n",
+            "maybe       |  1\n",
+            "my          |  3\n",
+            "necessarily |  1\n",
+            "not         |  1\n",
+            "of          |  2\n",
+            "off         |  1\n",
+            "offer       |  1\n",
+            "only        |  1\n",
+            "our         |  1\n",
+            "prepare     |  1\n",
+            "red         |  1\n",
+            "sandy       |  1\n",
+            "serve       |  1\n",
+            "so          |  1\n",
+            "st          |  1\n",
+            "stuck       |  1\n",
+            "supplies    |  1\n",
+            "t           |  1\n",
+            "thanks      |  1\n",
+            "to          |  2\n",
+            "tools       |  1\n",
+            "up          |  1\n",
+            "walking     |  1\n",
+            "want        |  1\n",
+            "welcome     |  1\n",
+            "willingness |  1\n",
+            "with        |  2\n",
+            "within      |  1\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "leEZ2wKv4Iie"
+      },
+      "source": [
+        "The above is Bag of Words model. Sklearn's Countvectorizer does the same thing, however, in a much more sophisticated manner."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "V-TMn3LZ4g5N",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "760e7dff-dc4e-4697-9ecf-71efc2644e9e"
+      },
+      "source": [
+        "train_text = [t for t in tweets[:3]]\n",
+        "print(train_text)\n",
+        "vectorizer = CountVectorizer()\n",
+        "vectorizer.fit(train_text)\n",
+        "print('Number of Words in Vocabulary of train tweets are: {}'.format(len(vectorizer.vocabulary_)))"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "['donations of batteries flashlights and cleaning supplies are always welcome at our donation drop off at 23 74 38th st btwn 23rd ave astoria blvd thanks ', 'i want hurricane sandy to cone so i can be stuck in my house with my family not ', 'hi i can help prepare food serve food offer clean up assistance but don t necessarily have any tools just my hands and willingness to help i only have a bicycle and could maybe help with deliveries i m within walking distance of red hook ']\n",
+            "Number of Words in Vocabulary of train tweets are: 68\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "g0J4tRe1UrL3"
+      },
+      "source": [
+        "And the Vocabulary is *almost* the same as ours above.\n",
+        "\n",
+        "**Discussion Exercise**: What is different about vocabulary results from the CountVectorizer than our method above?   Why do you think that is? Which is better?"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "bzb-T1z6UnZI",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "6efbaa81-d5a4-4259-a5e6-6da031b74b72"
+      },
+      "source": [
+        "vectorizer.vocabulary_"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "{'23': 0,\n",
+              " '23rd': 1,\n",
+              " '38th': 2,\n",
+              " '74': 3,\n",
+              " 'always': 4,\n",
+              " 'and': 5,\n",
+              " 'any': 6,\n",
+              " 'are': 7,\n",
+              " 'assistance': 8,\n",
+              " 'astoria': 9,\n",
+              " 'at': 10,\n",
+              " 'ave': 11,\n",
+              " 'batteries': 12,\n",
+              " 'be': 13,\n",
+              " 'bicycle': 14,\n",
+              " 'blvd': 15,\n",
+              " 'btwn': 16,\n",
+              " 'but': 17,\n",
+              " 'can': 18,\n",
+              " 'clean': 19,\n",
+              " 'cleaning': 20,\n",
+              " 'cone': 21,\n",
+              " 'could': 22,\n",
+              " 'deliveries': 23,\n",
+              " 'distance': 24,\n",
+              " 'don': 25,\n",
+              " 'donation': 26,\n",
+              " 'donations': 27,\n",
+              " 'drop': 28,\n",
+              " 'family': 29,\n",
+              " 'flashlights': 30,\n",
+              " 'food': 31,\n",
+              " 'hands': 32,\n",
+              " 'have': 33,\n",
+              " 'help': 34,\n",
+              " 'hi': 35,\n",
+              " 'hook': 36,\n",
+              " 'house': 37,\n",
+              " 'hurricane': 38,\n",
+              " 'in': 39,\n",
+              " 'just': 40,\n",
+              " 'maybe': 41,\n",
+              " 'my': 42,\n",
+              " 'necessarily': 43,\n",
+              " 'not': 44,\n",
+              " 'of': 45,\n",
+              " 'off': 46,\n",
+              " 'offer': 47,\n",
+              " 'only': 48,\n",
+              " 'our': 49,\n",
+              " 'prepare': 50,\n",
+              " 'red': 51,\n",
+              " 'sandy': 52,\n",
+              " 'serve': 53,\n",
+              " 'so': 54,\n",
+              " 'st': 55,\n",
+              " 'stuck': 56,\n",
+              " 'supplies': 57,\n",
+              " 'thanks': 58,\n",
+              " 'to': 59,\n",
+              " 'tools': 60,\n",
+              " 'up': 61,\n",
+              " 'walking': 62,\n",
+              " 'want': 63,\n",
+              " 'welcome': 64,\n",
+              " 'willingness': 65,\n",
+              " 'with': 66,\n",
+              " 'within': 67}"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 24
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "Lg5gkx3jI9CG"
+      },
+      "source": [
+        "### CountVectorizer - Fit and Transform"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "9HcyuzbvJCN6"
+      },
+      "source": [
+        "CountVectorizer's Fit method fits the given data to the vectorizer - consider it as if it is learning from the data. It produces a matrix, which is then be passed on to Logistic regression (later, so don't worry about understanding that). Think of the fit method this way: it just allows you to generate the matrix (but doesnt let us see it) used by the model to learn information about the training data."
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "ijxeGiNcJnRN"
+      },
+      "source": [
+        "CountVectorizer's Transform method transforms the given data to the matrix, there is no learning here. It does not generate a vocabulary, nor does it allow for many other functionalities that the fit method allows for. Hence, it cannot be used as a substitue for the fit method as it just spews out the matrix representation of the data!<br>"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "Lawl8vijIMIs"
+      },
+      "source": [
+        "### Coding Exercise "
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "aRlc2lohePfX"
+      },
+      "source": [
+        "Let us make the countvectorizer and use its fit and transform method, to learn their working. An example has been shown for you below. Try it on tweets of your choice!"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "895LTm1pKjpF",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "d4d20d8a-f299-4be9-f585-d6741eee4e87"
+      },
+      "source": [
+        "tweet_01 = 'This is a big tweet '\n",
+        "tweet_02 = 'Sample Tweet two'\n",
+        "# You can add more tweets here\n",
+        "train_text = [tweet_01, tweet_02]\n",
+        "print(train_text)\n",
+        "\n",
+        "### Your code starts here ###\n",
+        "\n",
+        "# make a CountVectorizer\n",
+        "# fit the data train_text to the vectorizer using the .fit method\n",
+        "# print the vocabulary of the vectorizer\n",
+        "\n",
+        "tweet_03 = 'Sample tweet'\n",
+        "# Now, transform this tweet's tokenList \n",
+        "\n",
+        "### Your code ends here ###\n",
+        "\n"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "['This is a big tweet ', 'Sample Tweet two']\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "ahjK7AgNZUx6"
+      },
+      "source": [
+        "# Logistic Regression"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "BS_FxE83RBuU"
+      },
+      "source": [
+        "## Logistic Regression Refresher"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "AAd_hJNd0Ul5"
+      },
+      "source": [
+        "We've just spent the last week or so learning about more sophisticated neural network architectures.  Remember that logistic regression is just linear regression followed by a sigmoid function."
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "5zmV-2E-VCdL"
+      },
+      "source": [
+        "**Review:** What is Logistic Regression?\n",
+        "\n",
+        "Logistic regression is a type of linear regression that is generally used for classification. Unlike linear regression which outputs continuous number values, logistic regression uses the logsitic function, also called the sigmoid function, to transform the output to return a probability value between 1 and 0, which can then be mapped to the different categories. The logistic (sigmoid) function looks something like this:\n",
+        "\n",
+        "![Logistic Function](https://ml-cheatsheet.readthedocs.io/en/latest/_images/sigmoid.png)\n",
+        "\n",
+        "Consider an example to understand logistic regression and to enchance the difference between logisitc and linear regression:\n",
+        "\n",
+        "> Given data on time spent studying and exam scores. Linear Regression and logistic regression can predict different things:\n",
+        "\n",
+        ">> *Linear Regression* could help us predict the student’s test score on a scale of 0 - 100. Linear regression predictions are continuous (numbers in a range).<br>\n",
+        "*Logistic Regression* could help use predict whether the student passed or failed. Logistic regression predictions are discrete (only specific values or categories are allowed). We can also view probability scores underlying the model’s classifications."
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "TlicWtTrRHPC"
+      },
+      "source": [
+        " **Why Logistic Regression?**"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "Ue2m3durVBE2"
+      },
+      "source": [
+        "**A couple of reasons for using Logistic regression:**\n",
+        "1.   Using a simpler model tells us how much room we have to improve. \n",
+        "2.   A simple model makes iteration quick and easy.\n",
+        "3.   Lastly, and perhaps most importantly, logistic regression is interpretable. You may have heard in the past that one thing deep neural networks struggle with is interpretability–when you are using these models to make predictions that affect people's wellbeing (e.g., sentencing decisions, predictive policing decisions), it becomes extremely important that you are able to understand why a model is making the predictions it makes.For simpler models like logistic regression, we get interpretability for free! "
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "mwJUL4QDQ-KB"
+      },
+      "source": [
+        "## Logistic Regression in Python"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "NluqLKKQ8SNv"
+      },
+      "source": [
+        "Logistic regression in python can be done easily with the help of sklearn's Logistic Regression function. Let us first do it for the three tweet examples that we saw above."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "I0xxnn1i8KoK"
+      },
+      "source": [
+        "tweet1 = 'please help we desperately need food'\n",
+        "label1 = \"Food\"\n",
+        "tweet2 = 'We are very thirsty please send water'\n",
+        "label2 = 'Water'\n",
+        "tweet3 = 'we need water and are very thirsty'\n",
+        "label3 = 'Water'\n",
+        "\n",
+        "train_tweets = [tweet1, tweet2]\n",
+        "train_tweets_label = [label1, label2]\n",
+        "test_tweets = [tweet3]\n",
+        "test_tweets_label = [label3]"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "xVEdW2d8RO2i"
+      },
+      "source": [
+        "Next, let us make the vectorizer and encode tweets"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "_aHfIV639W-o",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "c4f44095-9e11-4ce8-f385-88d06d48a4da"
+      },
+      "source": [
+        "vectorizer = CountVectorizer() # Countvectorizer\n",
+        "train_vect = vectorizer.fit_transform(train_tweets) # fit_transform fits the train tweets and returns the sparse matrix of the tweets\n",
+        "model = LogisticRegression() # create a LogisticRegression Model\n",
+        "model.fit(train_vect, train_tweets_label) # Fit the data values to the model"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "LogisticRegression(C=1.0, class_weight=None, dual=False, fit_intercept=True,\n",
+              "                   intercept_scaling=1, l1_ratio=None, max_iter=100,\n",
+              "                   multi_class='auto', n_jobs=None, penalty='l2',\n",
+              "                   random_state=None, solver='lbfgs', tol=0.0001, verbose=0,\n",
+              "                   warm_start=False)"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 27
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "bAzZHe6F-iOI"
+      },
+      "source": [
+        "Over here, model.fit(train_vect, train_tweets_label) applies logistic regression to the data given by the  matrix and hence, fits the data to the function. It takes two arguments: the matrix that is the train_vect variable and the train_tweets_label, which is the category each tweet belongs to.\n",
+        "\n",
+        "Let us now predict the third tweet using this model, using the method predict. However, first we need to transform the tweet into a vector form"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "O8hxXm66--ox",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "6cf98500-180b-447b-ba77-c29c472722ae"
+      },
+      "source": [
+        "test_vect = vectorizer.transform(test_tweets)\n",
+        "result = model.predict(test_vect)\n",
+        "print('Actual Category: {}\\nPredicted Category: {}'.format(label3, result[0]))"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "Actual Category: Water\n",
+            "Predicted Category: Water\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "__6MSOHNUy_2"
+      },
+      "source": [
+        "Yay! It predicted it correctly! However, that might not always be the case, as the training set here is so small."
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "_9eYK4QDT9Pg"
+      },
+      "source": [
+        "**Exercise**: Can you trick the logistic regression? Try and make a tweet get classified as \"Water\" when it is about \"Food\".  *Hint: What are some words that were in the Food tweet in the training set that had no significance to food?*"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "KJnVDK-oUAQV"
+      },
+      "source": [
+        "#@title Trick the logistic regression { run: \"auto\", vertical-output: true, display-mode: \"form\" }\n",
+        "test_tweet = \"Apple juice is the best\" #@param {type:\"string\"}\n",
+        "true_label = \"Food\" #@param [\"Food\", \"Water\"]\n",
+        "\n",
+        "test_vect = vectorizer.transform([test_tweet])\n",
+        "result = model.predict(test_vect)\n",
+        "print('Actual Category: {}\\nPredicted Category: {}'.format(true_label, result[0]))\n"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "KDaw9DovKNpK"
+      },
+      "source": [
+        "## Logistic Regression for Tweet Classification (Coding Exercise)"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "6Fs9EU6FSvdF"
+      },
+      "source": [
+        "#Split the Data into Training and Testing\n",
+        "X_train, X_test, y_train, y_test = train_test_split(tweet_set, tweet_labels, test_size=0.2, random_state=1)"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "amJz-5wbKP1J"
+      },
+      "source": [
+        "Let us now build our own regression model for all the training data:"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "z65-9oJQ7mpZ"
+      },
+      "source": [
+        "def train_model(tweets_to_train,train_labels):\n",
+        "  \"\"\"\n",
+        "  param: tweets_to_train - list of tweets to train on\n",
+        "  return: the vectorizer, the logistic regression model, the train_vector\n",
+        "  \"\"\"\n",
+        "  \n",
+        "  train_tweets = [\" \".join(t) for t in tweets_to_train]\n",
+        "  train_tweets_label = [l for l in train_labels]\n",
+        "  \n",
+        "  \n",
+        "  ### Your code starts here ###\n",
+        "  \n",
+        "  # vectorizer = Initialize CountVectorizer\n",
+        "  # fit the train_tweets in the CountVectorizer using the vectorizer's fit method\n",
+        "  # train_vect = get the sparse matrix of the train_tweets from the vectorizer using the transform function\n",
+        "  \n",
+        "  # model = initialize a Logistic Regression model\n",
+        "  # fit train_vect and train_tweets_label using the fit function of LogisticRegression\n",
+        "  \n",
+        "  ### Your code ends here ###\n",
+        "\n",
+        "  #train_tweets = [str(t) for t in tweets_to_train]\n",
+        "  #train_tweets_label = [t.category for t in tweets_to_train]\n",
+        "  \n",
+        "  vectorizer = CountVectorizer()\n",
+        "  train_vect = vectorizer.fit_transform(train_tweets)\n",
+        "\n",
+        "  model = LogisticRegression() # create a LogisticRegression Model\n",
+        "  model.fit(train_vect, train_tweets_label)\n",
+        "  \n",
+        "  \n",
+        "  return model,vectorizer\n",
+        "\n"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "Z9s_a32jxXXQ"
+      },
+      "source": [
+        "def predict(tweets_to_test, vectorizer, model):\n",
+        "  \"\"\"\n",
+        "  param: tweets_to_test - list of tweets to test the model on\n",
+        "  param: vectorizer - the CountVectorizer\n",
+        "  param: model - the LogisticRegression model\n",
+        "  return result (the prediction), the test_vect\n",
+        "  \"\"\"\n",
+        "  \n",
+        "  test_tweets = [\" \".join(t) for t in  tweets_to_test]\n",
+        "  \n",
+        "  print (test_tweets)\n",
+        "  ### Your code starts here ###\n",
+        "  \n",
+        "  # test_vect = transform the test_tweets to sparce matrix using the vectorizer's transform function\n",
+        "  test_vect = vectorizer.transform(test_tweets)\n",
+        "  # result = predict the result using the model's predict function on test_vect\n",
+        "  result = model.predict(test_vect)\n",
+        "  \n",
+        "  return result\n",
+        "\n",
+        "  ### Your code ends here ###"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "PeSN-6b1STF7",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "549192d7-9dc8-462b-97f5-e8a5195f27d8"
+      },
+      "source": [
+        "model,train_countvect = train_model(X_train,y_train)\n",
+        "#Predict labels for test set\n",
+        "y_pred = predict (X_test,train_countvect,model)\n",
+        "print(\"Accuracy:\",metrics.accuracy_score(y_test, y_pred))"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "['canned food', 'cook would happy try provide meals serve soup kitchen', 'cordless drill rechargeable batteries wireless router brand new batteries c batteries blankets please let know use items bring neighborhood drop', 'cooking serving food distributing goods', 'hunkered hurricane sandy windchimes clanging got kittehs chocolate http co zfcnmwel', 'hello two trucks worth goods water supplies clothes everything please email', 'chrisaldo im excited hurricane thats coming iloverain wait', 'hi sure original question went wanted donate baby supplies formula diapers wipes baby food toddler foods biggest need specific formula types really needed like soy powdered anything like specific diaper sizes either', 'daughter 15 50 ish wish volunteer food service thanksgiving holiday beyond food pantries set red hook could serve organize food donations let know thanks', 'hate power missing thexfactorusa tonight seriously want cry thankyousandy', 'licensed teacher licensed cpr tutor cook p u help building hand food drinks blankets organize food drives organize volunteer groups organize conduct fundraising needed', 'running low cat food dog food', 'great deal clothing summer winter well small amount toiletries small amount non perishable food', 'drinking water toilet paper', 'c mon nycers ambertheally sandy need generator aa batteries nycrescue 90 lafayette st ny ny pls rt', 'deliver food clothes', 'crossed day 5 power sandy', 'jimgaffigan sandy proves nothing american buying tons food raining', 'items needed food hygiene products pillows blankets please tell needed also make hot meals bring dinner', 'nonperishable food hygiene products temporary shelter', 'lots tech skills food prep', 'lodownny con ed cuts power lower east side http co w6skrpjm sandy yup power 2nd st ave les', 'waiting sandy esperando sandrita ghosttown manhattan ny http co mi3olvin', 'safe alive sandysurvivor', '15 boxes canned goods toiletries baby supplies', 'jcp l another nite power heat info power restored least told would help sandy', 'items plastic utensils baby items water brought locally btwn 23rd ave astoria blvd thanks', 'therealjdeuce mom keeps cooking keep eating fml hurricaneprobz wait mine', 'sandy takes ny morning lovable affair nycurrent new york http co tqqvbf80', 'anyone recommend gas stations gas nyc westchester time go 70 jimmy carter opec shopping gadzooks sandy', 'hey doscaminos employees left front door open soho location send someone shut sandy', 'bring food supplies', 'type hot catered meals needed', 'non perishable food men women clothing hygiene products donate live upper east side please let know get', 'e mailed team les 12 06 following message correct working number also wanted please ask could get help womens shoes size ten focus getting things together children 2 3 still dire need walking shoes boot possible thank connecting match food baby food site coordinators please follow make sure got baby food find potential match shoes thanks', 'way beautiful new hope temper mounting storm anxiety blanket news coverage showing stock broll people buying batteries', 'cook great organizational skills resourceful gather clothing water donations', 'food prep', 'youth group 17 strong get together cook 10 pans hot pasta dishes deliver hot meal would like prepare delivery serve possible also needed collect food food distribution would love lend hand 17 strong ages 9 12 adult chaperones twist tweens intense spirit together fumc somerville nj please let know', 'would like donate food hygiene supplies place drop astoria number', 'cant believe sandy', 'donate clothing towels toys food', 'happy help food distribution food kitchen example', 'still dark sandy', 'hand tools hammer nails screws screwdriver etc', 'bring clothes food help serve shelter', 'baby toddler sweaters sweatshirts couple heavy winter jackets one foot attachment blankets thick fleece snow suit also scarf gloves couple sweaters adult lot need california mail also order diapers wipes batteries etc online place send thanks', 'manager non profit technical skills coordinate efforts needed also want service way walk zillion stairs deliver food help food prep etc special skills relevant sandy clean', 'administrative food distribution', 'battery situation east village c problem aa aaa good luck ladies priorities sandy', 'time annoy downstairs neighbors hop old trainer keeping legs loose sandy hold triathlon', 'food hander license help cook deliver meals clean kitchen help serve food would like help deliver food access elevators especially housing lower east side food kitchens etc', 'large group church ready donate money clothes food necessary things weekend', 'spoke today got urgent needs met needs help rebuilding future still needs generator power call around see one available 11 3', 'baby formula 3 x 32 oz bottles similac sensitive ready made formula 1x 2 13 lb 3 x 12 6 oz containers similac sensitive powder formula', 'would like organize drive poughkeepsie area help staten island clothing non perishable food baby supplies hygiene products', 'foster small dog kitten donate dog food bathe groom small medium sized dog apartment', 'approximately 6 cans vegetables carrots green beans peas corn', 'peanut butter jelly sandwiches apples', 'provide sandwiches fruit food kids babies baby supplies non perishable foods hygiene products paper cups plates napkins', 'hot meals clothing cleaning supplies', 'tropical storm sandy god 82 aus diameter lamegeekjim', 'collecting donations area drop items week including non perishables baby supplies hygiene products cleaning supplies planning dropping items sorted shelters listed site let know better location drop items', 'sorting packing food clothes supplies etc conversational cantonese', 'clothes sorting giving food', 'sooooo house shook little windy ctsandy bridgeport', 'smells like thanksgiving christmas dinner house right moms cookin away sandynj cookinwhatfoodisleft', 'homemade chickensoup frankenstorm sandy comfortfood remotely chilly apt fee tribeca http co 4oyk3b4v', 'hurricane awful excuse eat junk food sight', 'professional experience tools hand tools power tools', 'distributing food water clothes supplies kind debris removal', 'bet calculator runs batteries sandy try harder b jarro building industries corp http co 17bfchzn', 'great thing living nyc buy water anywhere bad thing able buy 16oz frankenstorm zing', 'blankets baby supplies dog cat supplies jackets cleanup supplies', 'bobingle99 charge phone batteries open stores nj ny matter carrier sandynj batterycharging', 'baby clothes baby blankets baby bottles nipples ready made baby formula baby rice food toddler clothes toys toddlers', 'clothes batteries candles also toilet paper', 'food distibrution assist non profit organizations way possible small car travel transport goods', 'friends happy distribute meds', 'cook hand food needed well', 'apocalypse begun prepare hurricanesandy aftermath apocalyptic instagoo pals cabin http co nz18cg2n', 'peanut butter jelly whole wheat bread tuna fish', 'sandy needs go somewhere im tired house bored', 'non perishable food clothes toys', 'hygiene products flashlights batteries', 'hurricane storm new yorkers use excuse drink eat junk food pajamas 48 hours sandy', 'spoken sperm donor dad year yet calling morning thx hurricanesandy', 'food dog supplies dog crate hygiene products', 'food water ten mile run w biffie family home safely enjoying bloody mary come us sandy ready', 'canned fruits vegetables tuna fish salmon peanut butter jelly pasta maple brown sugar oatmeal non sugary cereals like cheerios', 'organizing group 15 middle school students community roots charter school ft greene would love weekend volunteer work could meal service clothing donation sorting etc please advise', 'planning drive school collect items gently used sheets towels blankets clothing toys stuffed animals non perishable food specific needs get items small school hamden ct social worker foster school', 'tribeca conedison restored power customers lower east side east village http co xarrlp1k sandy', 'jackets hoodies baby formula baby bottles new nipples bottles rice cereal babies toys babies toddlers towels baby clothes dried food', 'distribution water helping shelters temporary sites', 'items purchased candles alcohol water food items forgotten marshmallow graham cracker millerlite itsmillertime hurricanesandy', 'prepare food package help deliver food', 'thanks calls texts everyone safe place electricity cable food alcohol prayers affected sandy', 'name', 'extra clothing food hoousehold items etc willing come help bring handful people assist', 'one reasons havent power 3 days hurricanesandy aftermath morrisco whippany nj http co tbdxuak0', 'actually read write think today idk feel sandy', '4 bottles', 'sandy vs zoe winner gets stick seems pretty one sided right lba east side river walk http co 53lexsf5', 'sulllydude storm magnitude never happened happened like time yes', 'donate whatever needed food clothes coats blankets baby food supplies whatever', 'misc clothes non perishable food hygiene products cleaning supplies coats warm shirts jeans hats scarves gloves warm socks blankets', 'know sandy hits', 'assist handing supplies water etc probably also help completing fema forms snap food stamp benefit applications replacement food snap applications etc used work dept public welfare pa im pretty good paper work sorts', 'never ever seen anything like 60 70 mph gust winds take look cnn sandy ny http co 3amngln8', 'oh sandy aurora rising behind us pier lights carnival life forever love tonight may never see', 'driving upstate bring cans food dog food ensure hats gloves cleaning supplies', 'live fort greene small builder remodeler full size cargo van happy transport equipment also willing find rent generators sump pumps etc please feel free call thanks', 'spence haha walking around saying everyone freaking sure sandy thinks big deal', 'whole foods popping yesterday people buying salmon lump crab storm lmbo', 'help handing food supplies', 'make hot meals bring blankets people need let know help', 'running burning calories food ate sandy', 'clothing nonperishable food baby supplies hygiene products', 'better shape sandy needs man set eyes bay ridge http co cqwesio8', 'victormanibo plan last hurricane street hockey game middle times square time party', 'help prepare food distribute food clean etc', 'non perishable pet food well hygiene products water baby supplies', 'today war horse wicked amazing oh around 160 blocks thank sandy', 'cook prepare large amounts food without difficulty', 'send email donate comforter offered donate non perishable food blanket clothing', 'come supplies batteries led flashlights clothing things needed please call try contact guys 11 2 see need purchase much fit car syracuse bring 11 3 volunteer time entire weekend elementary teacher look children well', 'hi hi cook hot vegan veg meals deliver bike les folks get bushwick spare bedroom w double bed hot showers wifi etc non smoking 2 cats', 'comforter give could also give temporary shelter could also give hot meal', 'psegdelivers guys teased showing leaving roselle sandy2012 please forget block cold restless', 'mad house foodshopping w frankenstorm headed way everyone go shopping asap everything gone http co e7yxbmrk', 'bicycle deliver smaller supplies medicine etc', 'power sandy actually played pictionary yesterday racoon holiday inn express http co wzl1dndy', 'blade donft good stuff ba2 thinking man way cross pond especially stormageddon british airways', 'would like help distributing supplies food etc', 'ready sandy non perishable items water batteries flash light candles etc lets neck http co ibxauvor', 'need plumber check furnace hot water heater basement flooded', 'willrasid lawl im working tomorrow 4 10 got ta makin food gios sandys destroyin everything', '2 pizza pies', 'willing donate canned food non perishable food hygiene products needed', 'water distribution', 'donation clothes food etc', 'really equipment happy help also cook rice meat dogs cats whatever food needed necessary bring', '5th grade teacher california class would like gather supplies want make sure go someplace need gather blankets beanies scarves gloves hygiene products anyone interested flashlights batteries well school supplies also possibility get shipped asap long contact information let us know want contribute', 'hmm power saint peters university campus yet power blocks surronding plus easter coming hmm sandy', 'dire need food rice pasta baby food also need cleaning supplies clorox wipes sponges napklns etc', 'help collect distribute food supplies', 'first episode homeland sure made tense sandy winds frankenstorm', 'got ta find ants havnt wiped snow storm chalk', 'please help need non perishable food rice pasta baby food etc dire need cleaning supplies due flooding water damage clorox wipes sponges cleaning sprays thank assistance provide', '5 boxes food household items including cleaning supplies hats scarves gloves men women clothing please contact', 'would like send warm clothes blankets pet food hygiene products toys etc whatever find use someone need need address ship items thank', 'blankets food clothing', 'sandy clearly inspiring low carb diet quick grab cinnamon raisin english muffins http co chpj1vip', 'friends couple 3 cats need get hopefully belongings ruined home car totaled bought new van needs parts gas place stay manhattan east village another friend car queens done couple supply trips rockaways told getting bit dangerous going back next saturday limited gas far needs gas transport slight contact cell phone got ride jfk make calls use computer heard today need leave need help resources gas people going bring ideas get help', 'clothing canned boxed foods pillow cases shampoos hair brushes', 'donate band aids advil wipes', 'work mid size law firm offices pa nj ny proprietor given permission take collection clothing non perishable foods hygiene products baby items toys home goods need someone contact work logistics paperwork thanks', 'company work regeneron pharmaceuticals team volunteers looking come staten island volunteer saturday november 10 sandwiches donations also volunteers want help put us anywhere need help', 'lot pet supplies food crate also 5 friends would like come help well', 'food clothing cleaning supplies hygiene donations ill staten island today sat nov 10th', 'furniture home goods clothing hygiene products non preishable food', 'cleaning supplies trash bags baby food diapers', 'levy behind house compromised due sandy joys risk living beach', 'big comforter several cans food 4 candles 2 large boxes matches try gather feminine products etc well huge amount hopefully helpful stuff', 'chinese food places open storm', 'costumes williamsburg boring sandy took something ny halloween year', 'great organizational skills sorting donated goods worked past weekend sorting clothes food items donated toledo area fill 3 30 trucks worked seniors children computer office skills food prep 3 4 ton truck 4x4 husband retired ready help well', 'bath hand towels toilet paper toothpaste canned soups plastic forks knifes spoons plates', 'small mass clothing non perishable food personal hygiene items etc would like donate', 'clothing blankets coats baby supplies food shoes water toiletries', 'looking volunteer opportunity thanksgiving day staten island distribute food wife 14 yr old daughter', 'food handlers license 12 yrs restaurant experience friendly patient clean lift decent amount weight', 'children toys clothing good condition also bring bottled water', 'giving water coats blankets', 'oceanlab night away reminisce sensationwhite beautiful memories weekend hurricanesandy blow', 'rt jaimejin need produce canned goods depends 420 baltic bk 6 00pm 5 14 story buildings without power sandy', 'distribute food pack supplies', 'decent shape climb stairs deliver food water folks high rises also backpack could make easier truck stuff stairs', 'happy bring whatever supplies needed time toiletries medicine cleaning supplies etc please let know', 'great first thing freshdirect post sandy deliver free food stranded nyers oh wait never happened', 'want donate clothing non perishable food baked goods', 'whole foods union square open reprieve amazing hot chocolate sandy sandynyc', 'ya b ya b ya storm', 'general volunteer opportunities shelters resource distro food banks etc', 'fortunate power prepare hot meals deliver car looking help anyway possible', 'jackets socks hats gloves water 15 home depot card candles', 'food prep yoga classes supply runs organization', 'director human resources max brenner chocolate bald man union square would like organize group employees come one affected areas bring needed supplies hot chocolate warm cookies brighten people experiencing difficult times due sandy please let know think could appropriate given serious circumstances people', 'junkfood mentalist nice quiet room yepp got good sometimes hurricanesandy', 'get supplies pharmacy needed', 'candles bottled water art supplies kids', 'man sweater jacket shirts size l also non perishable foods uncooked rice give', 'hurricane going hitting new york awesome', 'willing give water supplies etc', 'clothes blankets winter coats food home goids', 'bad building heat hot water power lost lot storm car work hours 300 hundred dollars food', 'grateful hurricane sandy wreck much flooding deal power outtage stay strong', 'sandy storm partially cause global warming think', 'group orange county california families want provide help support need would like hold donation drive clothing food school supplies needed looking shipping items need know sent please let us know help 3000 miles away', 'person job create names hurricanes got dumped alot many girls', 'hot food day sandy http co urm4mtzm', 'many fresh sandwiches want donate uws go anywhere manhattan', 'make sandwiches distribute food people play kids oh also live alphabet city e 7th ave c know help needed area', 'distribute food goods cook provide reiki relaxation therapy check residents organize provide graphic design work', 'provide gluten free food anyone celiac disease medical related issues needs', 'able bodied help distribute donations food etc', 'toilet paper paper towels tissues bottled water', 'winter coats jackets scarves dog food canned foods need anything else make run market let know', 'heard accepting prepared food happy cook bring food', 'run bike food needing', 'donate bring following red hook 1 2 blankets batteries 1 pair lace winter rain boots woman size 8 fully water proof warm winter boots woman size 8 warm water proof warm clothing men women sweat shirts sweaters maybe coats items good condition clean', 'baby supplies diapers formula blankets give well water feminine hygiene products', 'made enough food keep full till storm stops trapped driveway either way', 'psychological services phd psychology lead games kids donate food', 'supposed get meekmill new album got power outaaa sandy', 'safe food baby formula severe food allergies celiac', 'bring much carry trips donation center whatever supplies needed baby supplies canned food utensils hygiene products', 'clothes coats canned food baked goods', 'accountant could help financial services type would simply like lend strong back general handyman skills basic tools would happy purchase specific tools needed assuming local hardware store home depot', 'pictures heartbreaking helpsandy', 'canned foods veggies potatoes sauces', 'brother family live power sure enough food especially coned days daughter called today food placed window spoil top floor assume elevator work corded phone call brother recently surgery remove tumor suppose see doctor thursday check food imperative recovery please way someone check ok would greatly appreciated thank much brother lives georgia cell', 'donate non perishable food clothing coats tools baby supplies toys hygiene products sure getting lot requests drop supplies needed live park slope far red hook', 'ceilioconnor ok escaped floods power safe xx sandysucks vacationfail', 'latenightcrew sandy coopfoodanddrink hotelonrivington co op food drink http co hyowdix5', 'number items donate kids wanted donate gently used toys board books puzzles toddler kitchen fisher price great condition number pans utensils also towels sheets good condition men shoes size 13 bag kids clothes dried soup mixes', 'stressfactorycc skeleton walked bar ordered beer mop work recovering hurricane', 'cook vegan meals provided food ingredients', 'staceystone glad hear u guys r safe let snacking commence likeineedahurricanetohappentojustifysnacking', 'would like bring clothing also non perishable items', 'shawncarrie got ton extra prepared food needed got truck occupysandy occupywallst', 'hometown va beach got rainfall 9 inches least damage weird things turn hurricanesandy nyc', 'supply yard work debri removal clean', 'rt bronxzooscobra stocked canned mice batteries heated rock sandy', 'power strips toiletries toilet paper', 'cbsnewyork day 8 hurricane power lines still front house please help http co z0oqfzuw', 'slacks sweaters tops jacket shoes sheets towels dry canned food', 'power food spoiling non perishable food request email telephone', 'name work corcon corcon general contracting company interested employees volunteer time upcoming sunday laborers work office someone could give call back like see something try help', 'hi friend want drive maine next tuesday drop car load non perishable food whatever need e toys hygiene products clothes', 'handing food materials', 'food preparation supply distribution meal distribution', 'good evening name senior brooklyn technical high school many students faculty affected hurricane sandy interested holding hurricane sandy relief effort drive collecting non perishable canned goods lightly used clothing please let know interested collecting goods may arrange something email address phone number thanks', 'reece school collected variety heavy duty cleaning supplies warm clothes nonperishable food items blankets personal care items pet food course two weeks search location drop donations week november 26 2012 please contact directly arrange date time thank much advance', 'keep bringing water need tons supplies drop locations enough clothes', 'non perishable food baby supplies hygiene products', '26 boxes 156 candles new candles used set dressing music video never lit', 'food prep art therapy', 'awesome going need hot food transport mon wed', 'lights flickering hoping electricity stays hurricanesandy', 'children clothing adult clothing children toys books little food', 'bring meal 100 people group excellent cooks waiting ready vehicle bring specific location catered events know could could come saturday sunday name meal location bring', 'power trees every block inside houses evacuating due gas leaks ohmy sandy', 'hi interested donating non perishable canned food want buy food online costco ship directly location car eager help everything ready donate hundred servings canned food 10 cans total 6 cans please tell ship somewhere helpful purchase 10 cans food thank', 'local fame achieved hahaha local representative hurricane sandy right', 'anyone ever considered gangnam style may rain dance brought sandy upon', 'clothing food', 'family drive donations urgent needed list christmas coming hopefully full econoline van martha vineyard full non parishable foods cleaning supplies list back packs supplies kids rockaway area arriving donate sat dec 22nd check website closer date call one contact listed days best drop destination directions look forward seeing soon', '2 bags women clothing warm cold weather clothes winter coats 4 gallons water', 'looking warm clothes coats hats gloves flashlights batteries advice would help', 'coat blanket warm clothes candles non perishables sure best drop thanks', 'canned dry goods', 'would like bring hot trays baked ziti tomorrow sunday 11 4 let know bring', 'times tough sandy power heat running working gas stations l dollar tree http co t0qz7jou', 'like volunteer help cleanup effort ie streets parks water etc', 'power turned street fire power back', 'coming si saturday voluneers help clean bringing clothes shoes toys sheets blankets pillows towels cleaning supplies hygiene products baby supplies first aid kits', 'new yorkers food big hurricane issue mta means workers stores closed bridges means limited resupply sandy', 'plan driving thanksgiving morning va ever need time hope bring car supplies food toys products etc please let know would best keep touch', '500 brownbag meals delivered around 3 30pm 4pm know locations use take 500 brownbags consist 1 2 sandwiches snack juice pb j turkey cheese veggie cheese', 'mostly cleaning supplies tools brand new also batteries flashlights blankets clothes', 'chino warrior delivered food storm got good tip sandy', 'bring clothing food money helpful', 'hoping neighbors wait plumbing water come back', 'live near pharmacy collect prescription counter meds needed', 'baby supplies hygiene products water plastic utensils', 'need boat removed front home boat car crashed fence bounced home several times fear could cause small bungalow damage extreme thanks cross street laconia', 'start marathon staten island starting line condition sandy', 'ventured south lowermanhattan check jess shiller apt one lone food vendor wall st http co a7zgowjw sandy', 'youbouz read schedule thankssandy']\n",
+            "Accuracy: 0.896797153024911\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "JOWekFQkXPjP"
+      },
+      "source": [
+        "# Evaluation\n",
+        "Let's see how our classifier did!  We will train our classifier on 80% of the dataset and then test it on 20%. This is called a *train-test split* and is usually done to evaluate models."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "XadKkUt39krv",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 434
+        },
+        "outputId": "3c1fb9ef-dfe2-4a5a-dad2-a205cbef8dd8"
+      },
+      "source": [
+        "table=pd.DataFrame([[\" \".join(t) for t in X_test],y_pred, y_test]).transpose()\n",
+        "table.columns = ['Tweet', 'Predicted Category', 'True Category']\n",
+        "print(\"Percent Correct: %.2f\" % (sum(table['Predicted Category'] == table['True Category'])/len(table['True Category'])))\n",
+        "table"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "Percent Correct: 0.90\n"
+          ],
+          "name": "stdout"
+        },
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/html": [
+              "<div>\n",
+              "<style scoped>\n",
+              "    .dataframe tbody tr th:only-of-type {\n",
+              "        vertical-align: middle;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe tbody tr th {\n",
+              "        vertical-align: top;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe thead th {\n",
+              "        text-align: right;\n",
+              "    }\n",
+              "</style>\n",
+              "<table border=\"1\" class=\"dataframe\">\n",
+              "  <thead>\n",
+              "    <tr style=\"text-align: right;\">\n",
+              "      <th></th>\n",
+              "      <th>Tweet</th>\n",
+              "      <th>Predicted Category</th>\n",
+              "      <th>True Category</th>\n",
+              "    </tr>\n",
+              "  </thead>\n",
+              "  <tbody>\n",
+              "    <tr>\n",
+              "      <th>0</th>\n",
+              "      <td>canned food</td>\n",
+              "      <td>Food</td>\n",
+              "      <td>Food</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>1</th>\n",
+              "      <td>cook would happy try provide meals serve soup ...</td>\n",
+              "      <td>Food</td>\n",
+              "      <td>Food</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>2</th>\n",
+              "      <td>cordless drill rechargeable batteries wireless...</td>\n",
+              "      <td>Energy</td>\n",
+              "      <td>Energy</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>3</th>\n",
+              "      <td>cooking serving food distributing goods</td>\n",
+              "      <td>Food</td>\n",
+              "      <td>Food</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>4</th>\n",
+              "      <td>hunkered hurricane sandy windchimes clanging g...</td>\n",
+              "      <td>None</td>\n",
+              "      <td>None</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>...</th>\n",
+              "      <td>...</td>\n",
+              "      <td>...</td>\n",
+              "      <td>...</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>276</th>\n",
+              "      <td>baby supplies hygiene products water plastic u...</td>\n",
+              "      <td>Water</td>\n",
+              "      <td>Water</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>277</th>\n",
+              "      <td>need boat removed front home boat car crashed ...</td>\n",
+              "      <td>None</td>\n",
+              "      <td>Energy</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>278</th>\n",
+              "      <td>start marathon staten island starting line con...</td>\n",
+              "      <td>None</td>\n",
+              "      <td>None</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>279</th>\n",
+              "      <td>ventured south lowermanhattan check jess shill...</td>\n",
+              "      <td>None</td>\n",
+              "      <td>None</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>280</th>\n",
+              "      <td>youbouz read schedule thankssandy</td>\n",
+              "      <td>None</td>\n",
+              "      <td>None</td>\n",
+              "    </tr>\n",
+              "  </tbody>\n",
+              "</table>\n",
+              "<p>281 rows × 3 columns</p>\n",
+              "</div>"
+            ],
+            "text/plain": [
+              "                                                 Tweet  ... True Category\n",
+              "0                                          canned food  ...          Food\n",
+              "1    cook would happy try provide meals serve soup ...  ...          Food\n",
+              "2    cordless drill rechargeable batteries wireless...  ...        Energy\n",
+              "3              cooking serving food distributing goods  ...          Food\n",
+              "4    hunkered hurricane sandy windchimes clanging g...  ...          None\n",
+              "..                                                 ...  ...           ...\n",
+              "276  baby supplies hygiene products water plastic u...  ...         Water\n",
+              "277  need boat removed front home boat car crashed ...  ...        Energy\n",
+              "278  start marathon staten island starting line con...  ...          None\n",
+              "279  ventured south lowermanhattan check jess shill...  ...          None\n",
+              "280                  youbouz read schedule thankssandy  ...          None\n",
+              "\n",
+              "[281 rows x 3 columns]"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 33
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "GaPh1b8-ZCuk"
+      },
+      "source": [
+        "**Discussion Exercise** Which categories does the regressor perform best on?  Would the classifier perform better or worse if we only used the food vs water tweets?"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "EvwjKTj9j58o"
+      },
+      "source": [
+        "## Evaluation Metrics\n",
+        "\n",
+        "Let us look at some stats about the prediction to understand what the model predicted! Review day 1 for a refresher on accuracy-related metrics."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "0AWBAFspnklt",
+        "cellView": "form"
+      },
+      "source": [
+        "#@title Helper Function-Confusion Matrix\n",
+        "'''\n",
+        "Plots the confusion Matrix and saves it\n",
+        "'''\n",
+        "def plot_confusion_matrix(y_true,y_predicted):\n",
+        "  cm = metrics.confusion_matrix(y_true, y_predicted)\n",
+        "  print (\"Plotting the Confusion Matrix\")\n",
+        "  labels = ['Energy', 'Food', 'Medical', 'None', 'Water']\n",
+        "  df_cm = pd.DataFrame(cm,index =labels,columns = labels)\n",
+        "  fig = plt.figure()\n",
+        "  res = sns.heatmap(df_cm, annot=True,cmap='Blues', fmt='g')\n",
+        "  plt.yticks([0.5,1.5,2.5,3.5,4.5], labels,va='center')\n",
+        "  plt.title('Confusion Matrix - TestData')\n",
+        "  plt.ylabel('True label')\n",
+        "  plt.xlabel('Predicted label')\n",
+        "  plt.show()\n",
+        "  plt.close()\n",
+        "\n",
+        " \n"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "sAqXjDIcBvnq",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 312
+        },
+        "outputId": "8c83ee37-0f7d-4655-9315-0484712b062f"
+      },
+      "source": [
+        "plot_confusion_matrix(y_test,y_pred)"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "Plotting the Confusion Matrix\n"
+          ],
+          "name": "stdout"
+        },
+        {
+          "output_type": "display_data",
+          "data": {
+            "image/png": "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\n",
+            "text/plain": [
+              "<Figure size 432x288 with 2 Axes>"
+            ]
+          },
+          "metadata": {
+            "tags": [],
+            "needs_background": "light"
+          }
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "sjNNguK_-esv"
+      },
+      "source": [
+        "Review day 1 for a refresher on accuracy metrics!"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "tRLVrhvdB7Xj"
+      },
+      "source": [
+        "print('The total number of correct predictions are: {}'.format(sum(table['Predicted Category'] == table['True Category'])))\n",
+        "print('The total number of incorrect predictions are: {}'.format(sum(table['Predicted Category'] != table['True Category'])))"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "LW0GoJB1_wbK"
+      },
+      "source": [
+        "print('Accuracy on the test data is: {:.2f}%'.format(metrics.accuracy_score(y_test, y_pred)*100))"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "Cr5OQboh8ssx"
+      },
+      "source": [
+        "###Exercise: Discussion\n",
+        "\n",
+        "Comment out the following code line in the Data Preprocessing part and run through the algorithm again!\n",
+        "\n",
+        "' tweets = tweets.apply(lambda x: re.sub(r'[^a-zA-Z0-9]+', ' ',x))''\n",
+        "\n",
+        "Comment on the classifier's accuracy!"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "-gg1B7NfkfzA"
+      },
+      "source": [
+        "## Conclusion"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "b1m0JuOtkhmi"
+      },
+      "source": [
+        "**Discussion Exercise**:\n",
+        "1. How could you use what you have built to help during a disaster?\n",
+        "\n",
+        "\n",
+        "That is it for today! Tomorrow we shall cover another model - GloVe. Review the concepts we covered today and enjoy the rest of your day!\n"
+      ]
+    }
+  ]
+}
